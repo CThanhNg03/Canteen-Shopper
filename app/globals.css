@@ -1,6 +1,7 @@
 @import "tailwindcss";
 :root{--green:#176448;--ink:#17211d;--cream:#f6f7f3}
-*{box-sizing:border-box} body{margin:0;background:var(--cream);color:var(--ink);font-family:Arial,"Helvetica Neue",sans-serif}
+@theme inline{--font-sans:var(--font-be-vietnam-pro),sans-serif}
+*{box-sizing:border-box} body{margin:0;background:var(--cream);color:var(--ink);font-family:var(--font-be-vietnam-pro),sans-serif;font-synthesis:weight style}
 button,input,select{font:inherit} button{cursor:pointer}.touch{min-height:44px}
 .field{border:1px solid #bac5bf;background:white;border-radius:8px;padding:.6rem .75rem;outline:none}.field:focus{border-color:#176448;box-shadow:0 0 0 3px #17644822}
 .btn{min-height:44px;border-radius:9px;padding:.55rem 1rem;font-weight:700;border:1px solid #b5c0ba;background:white;display:inline-flex;align-items:center;justify-content:center;gap:.45rem}
