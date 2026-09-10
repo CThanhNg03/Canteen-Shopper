@@ -1,5 +1,47 @@
 "use client";
-import { Printer } from "lucide-react"; import { ArithmeticInput } from "@/components/calculator/arithmetic-input"; import { formatNumber } from "@/lib/utils";
-export type ShoppingItem={name:string;unit:string;required:number;available:number;final:number};
-export const initialShopping:ShoppingItem[]=[{name:"Thịt gà",unit:"kg",required:45.8,available:0,final:45.8},{name:"Lá giang",unit:"kg",required:1.22,available:0.2,final:1.02},{name:"Rau muống",unit:"kg",required:24.066,available:2,final:22.066},{name:"Thịt vai",unit:"kg",required:18.4,available:1.5,final:16.9}];
-export function ShoppingList({items,setItems,print=true}:{items:ShoppingItem[];setItems:(v:ShoppingItem[])=>void;print?:boolean}){const update=(i:number,key:"available"|"final",v:number)=>setItems(items.map((x,n)=>n===i?{...x,[key]:v}:x));return <div>{print&&<div className="no-print mb-4 flex justify-end"><button className="btn btn-primary" onClick={()=>window.print()}><Printer size={19}/> In danh sách</button></div>}<div className="overflow-x-auto"><table className="w-full min-w-[660px] border-collapse"><thead><tr className="bg-[#176448] text-white"><th className="border p-3 text-left">Nguyên liệu</th><th className="border p-3">Cần</th><th className="border p-3">Hiện có</th><th className="border p-3">Đề xuất</th><th className="border p-3">Cần mua</th></tr></thead><tbody>{items.map((x,i)=>{const suggested=Math.max(x.required-x.available,0);return <tr key={x.name}><th className="border p-3 text-left">{x.name}</th><td className="border bg-slate-50 p-3 text-center">{formatNumber(x.required)} {x.unit}</td><td className="border p-2"><ArithmeticInput value={x.available} onChange={v=>update(i,"available",v)}/></td><td className="border bg-slate-50 p-3 text-center font-bold">{formatNumber(suggested)} {x.unit}</td><td className="border p-2"><ArithmeticInput value={x.final} onChange={v=>update(i,"final",v)}/><div className="no-print mt-1 flex justify-center gap-1">{[Math.round(suggested*10)/10,Math.ceil(suggested)].filter((v,n,a)=>a.indexOf(v)===n).map(v=><button key={v} className="rounded border bg-white px-2 py-1 text-xs" onClick={()=>update(i,"final",v)}>{formatNumber(v)}</button>)}</div></td></tr>})}</tbody></table></div></div>}
+import { Printer } from "lucide-react";
+import { ArithmeticInput } from "@/components/calculator/arithmetic-input";
+import { formatNumber } from "@/lib/utils";
+
+export type ShoppingItem = {
+  name: string;
+  unit: string;
+  supplier?: string;
+  required: number;
+  available: number;
+  final: number;
+  canteens?: { id: string; name: string; quantity: number }[];
+};
+
+export const initialShopping: ShoppingItem[] = [
+  { name: "Thịt gà", unit: "kg", supplier: "Thực phẩm An Phú", required: 45.8, available: 0, final: 45.8 },
+  { name: "Lá giang", unit: "kg", supplier: "Rau củ Minh Tâm", required: 1.22, available: 0.2, final: 1.02 },
+  { name: "Rau muống", unit: "kg", supplier: "Rau củ Minh Tâm", required: 24.066, available: 2, final: 22.066 },
+];
+
+export function ShoppingList({ items, setItems, print = true, showBreakdown = false, editable = true }: {
+  items: ShoppingItem[];
+  setItems: (value: ShoppingItem[]) => void;
+  print?: boolean;
+  showBreakdown?: boolean;
+  editable?: boolean;
+}) {
+  const update = (index: number, key: "available" | "final", value: number) => setItems(items.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item));
+
+  return <div>
+    {print && <div className="no-print mb-4 flex justify-end"><button className="btn btn-primary" onClick={() => window.print()}><Printer size={19} /> In danh sách</button></div>}
+    {!items.length ? <div className="rounded-lg border border-dashed p-8 text-center text-slate-500">Chưa có nguyên liệu từ các căng tin đã chọn.</div> : <div className="overflow-x-auto"><table className="w-full min-w-[760px] border-collapse">
+      <thead><tr className="bg-[#176448] text-white"><th className="border p-3 text-left">Nguyên liệu / Nhà cung cấp</th><th className="border p-3">Tổng cần</th><th className="border p-3">Hiện có</th><th className="border p-3">Đề xuất</th><th className="border p-3">Cần mua</th></tr></thead>
+      <tbody>{items.map((item, index) => {
+        const suggested = Math.max(item.required - item.available, 0);
+        return <tr key={`${item.name}-${item.supplier ?? ""}`}>
+          <th className="border p-3 text-left"><div>{item.name}</div><div className="mt-1 text-xs font-medium text-slate-500">{item.supplier ?? "Chưa chọn nhà cung cấp"}</div>{showBreakdown && item.canteens?.length ? <div className="mt-2 flex flex-wrap gap-1">{item.canteens.map(canteen => <span key={canteen.id} className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800">{canteen.name}: {formatNumber(canteen.quantity)} {item.unit}</span>)}</div> : null}</th>
+          <td className="border bg-slate-50 p-3 text-center font-extrabold">{formatNumber(item.required)} {item.unit}</td>
+          <td className="border p-2">{editable ? <ArithmeticInput value={item.available} onChange={value => update(index, "available", value)} /> : <div className="p-2 text-center">{formatNumber(item.available)} {item.unit}</div>}</td>
+          <td className="border bg-slate-50 p-3 text-center font-bold">{formatNumber(suggested)} {item.unit}</td>
+          <td className="border p-2">{editable ? <><ArithmeticInput value={item.final} onChange={value => update(index, "final", value)} /><div className="no-print mt-1 flex justify-center gap-1">{[Math.round(suggested * 10) / 10, Math.ceil(suggested)].filter((value, valueIndex, values) => values.indexOf(value) === valueIndex).map(value => <button key={value} className="rounded border bg-white px-2 py-1 text-xs" onClick={() => update(index, "final", value)}>{formatNumber(value)}</button>)}</div></> : <div className="p-2 text-center font-bold">{formatNumber(item.final)} {item.unit}</div>}</td>
+        </tr>;
+      })}</tbody>
+    </table></div>}
+  </div>;
+}

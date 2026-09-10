@@ -1,6 +1,6 @@
 # Bếp Việt
 
-Ứng dụng MVP lập kế hoạch suất ăn cho bếp ăn tập thể: nhập quân số, lên thực đơn, tính nguyên liệu, trừ lượng hiện có và chốt danh sách mua.
+Ứng dụng MVP lập kế hoạch suất ăn cho nhiều căng tin: nhập quân số và thực đơn riêng từng nơi, sau đó chọn các căng tin để gộp nguyên liệu theo nhà cung cấp, trừ lượng hiện có và chốt danh sách mua.
 
 ## Công nghệ và kiến trúc
 
@@ -45,4 +45,4 @@ Không lưu dữ liệu lâu dài trên filesystem của Vercel. Manifest và bi
 
 ## Mô hình dữ liệu
 
-`DailyPlan` là kế hoạch của một ngày. `HeadcountEntry` giữ quân số theo đơn vị + bữa + loại suất. `Menu`/`MenuItem` tham chiếu món. `DishVariant` và `DishIngredientNorm` giữ định mức riêng theo loại suất. `DailyIngredientStock` chỉ là lượng hiện có trong ngày; `ShoppingItem` giữ riêng số cần, số đề xuất và số mua cuối cùng để không làm mất điều chỉnh thủ công.
+`Canteen` là từng căng tin được quản lý. `DailyPlan` là kế hoạch của một căng tin trong một ngày. `HeadcountEntry` giữ quân số theo đơn vị + bữa + loại suất. `Menu`/`MenuItem` tham chiếu món. `DishVariant` và `DishIngredientNorm` giữ định mức riêng theo loại suất. Mỗi nguyên liệu có thể gắn nhà cung cấp để danh sách mua cộng chung nhu cầu của các căng tin đã chọn.
