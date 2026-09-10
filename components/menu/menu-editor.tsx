@@ -1,4 +1,38 @@
 "use client";
-import { Plus, RotateCcw, Trash2 } from "lucide-react"; import { DishAutocomplete } from "./dish-autocomplete";
-export type MenuRow={id:string;category:string;name:string;note:string};
-export function MenuEditor({rows,setRows}:{rows:MenuRow[];setRows:(v:MenuRow[])=>void}){const update=(id:string,key:keyof MenuRow,value:string)=>setRows(rows.map(r=>r.id===id?{...r,[key]:value}:r));return <div><div className="mb-3 flex flex-wrap gap-2"><button className="btn" onClick={()=>setRows([{id:crypto.randomUUID(),category:"Món chính",name:"Gà nấu lá giang",note:""},{id:crypto.randomUUID(),category:"Rau",name:"Rau muống luộc",note:""},{id:crypto.randomUUID(),category:"Canh",name:"Canh bí xanh thịt",note:""}])}><RotateCcw size={18}/> Dùng lại thực đơn gần đây</button><button className="btn">Sao chép thực đơn hôm trước</button></div><div className="space-y-2">{rows.map((r,i)=><div key={r.id} className="grid grid-cols-[130px_minmax(220px,1fr)_minmax(120px,.7fr)_44px] gap-2"><select aria-label="Loại món" className="field" value={r.category} onChange={e=>update(r.id,"category",e.target.value)}>{["Món chính","Rau","Canh","Tráng miệng"].map(x=><option key={x}>{x}</option>)}</select><DishAutocomplete value={r.name} onChange={v=>update(r.id,"name",v)}/><input aria-label="Ghi chú" className="field" placeholder="Ghi chú (nếu có)" value={r.note} onChange={e=>update(r.id,"note",e.target.value)}/><button aria-label="Xóa món" className="btn px-2 text-red-700" onClick={()=>setRows(rows.filter(x=>x.id!==r.id))}><Trash2 size={19}/></button>{r.name&&!["Gà nấu lá giang","Bò xào hoa thiên lý","Rau muống luộc","Canh bí xanh thịt","Chuối"].includes(r.name)&&<div className="col-start-2 text-sm font-medium text-amber-700">Chưa có định mức — vẫn có thể lưu thực đơn</div>}</div>)}</div><button className="btn mt-3 text-[#176448]" onClick={()=>setRows([...rows,{id:crypto.randomUUID(),category:"Món chính",name:"",note:""}])}><Plus size={18}/> Thêm món</button></div>}
+
+import { Plus, RotateCcw, Trash2 } from "lucide-react";
+import { DishAutocomplete } from "./dish-autocomplete";
+
+export type MenuRow = { id: string; category: string; name: string; note: string };
+
+const knownDishes = ["Gà nấu lá giang", "Bò xào hoa thiên lý", "Rau muống luộc", "Canh bí xanh thịt", "Chuối"];
+
+export function MenuEditor({ rows, setRows }: { rows: MenuRow[]; setRows: (value: MenuRow[]) => void }) {
+  const update = (id: string, key: "name" | "note", value: string) => setRows(rows.map(row => row.id === id ? { ...row, [key]: value } : row));
+  const reusableRows = createReusableRows();
+
+  return <div>
+    <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+      <button className="btn w-full sm:w-auto" onClick={() => setRows(reusableRows)}><RotateCcw size={18} /> Dùng lại thực đơn gần đây</button>
+      <button className="btn w-full sm:w-auto">Sao chép thực đơn hôm trước</button>
+    </div>
+    <div className="flex flex-col gap-2">
+      {rows.map(row => <div key={row.id} className="grid gap-2 rounded-lg border border-slate-200 bg-slate-50/60 p-2 sm:grid-cols-[minmax(220px,1fr)_minmax(160px,.7fr)_44px] sm:items-start sm:border-0 sm:bg-transparent sm:p-0">
+        <DishAutocomplete value={row.name} onChange={value => update(row.id, "name", value)} />
+        <input aria-label="Ghi chú" className="field min-h-11 w-full" placeholder="Ghi chú (nếu có)" value={row.note} onChange={event => update(row.id, "note", event.target.value)} />
+        <button aria-label="Xóa món" className="btn min-h-11 w-full px-2 text-red-700 sm:w-11" onClick={() => setRows(rows.filter(item => item.id !== row.id))}><Trash2 size={19} /><span className="sm:hidden">Xóa món</span></button>
+        {row.name && !knownDishes.includes(row.name) && <div className="text-sm font-medium text-amber-700 sm:col-start-1 sm:col-span-2">Chưa có định mức — vẫn có thể lưu thực đơn</div>}
+      </div>)}
+    </div>
+    <button className="btn mt-3 w-full text-[#176448] sm:w-auto" onClick={() => setRows([...rows, { id: crypto.randomUUID(), category: "Món chính", name: "", note: "" }])}><Plus size={18} /> Thêm món</button>
+  </div>;
+}
+
+function createReusableRows() {
+  return [
+    { id: crypto.randomUUID(), category: "Món chính", name: "Gà nấu lá giang", note: "" },
+    { id: crypto.randomUUID(), category: "Rau", name: "Rau muống luộc", note: "" },
+    { id: crypto.randomUUID(), category: "Canh", name: "Canh bí xanh thịt", note: "" },
+  ];
+}
+

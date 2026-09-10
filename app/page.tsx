@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useState } from "react";
 import { Calendar, Check, Copy, Save, ShoppingBasket, Users, Utensils } from "lucide-react";
 import { defaultUnits, HeadcountGrid, type Counts, type UnitRow } from "@/components/headcount/headcount-grid";
@@ -44,6 +45,7 @@ export default function TodayPage() {
   const [saved, setSaved] = useState(false);
   const [loadedDate, setLoadedDate] = useState<string | null>(null);
 
+  // These effects hydrate the selected day from browser storage and derive shopping quantities from the editable plan.
   useEffect(() => {
     const raw = localStorage.getItem(storageKey(date));
     let plan: StoredPlan | null = null;
@@ -102,9 +104,9 @@ export default function TodayPage() {
   };
 
   return <div className="space-y-5">
-    <div className="flex flex-wrap items-center gap-3"><div><h1 className="text-2xl font-extrabold">Kế hoạch hôm nay</h1><p className="text-slate-500">Quân số → Thực đơn → Cần mua</p></div><div className="ml-auto flex flex-wrap gap-2"><label className="field flex items-center gap-2 font-bold"><Calendar size={19} /><input aria-label="Ngày lập kế hoạch" type="date" value={date} onChange={event => setDate(event.target.value)} className="outline-none" /></label><button className="btn" onClick={copyPreviousDay}><Copy size={18} /> Sao chép hôm trước</button><button className="btn btn-primary" onClick={save}>{saved ? <Check size={18} /> : <Save size={18} />} {saved ? "Đã lưu" : "Lưu kế hoạch"}</button></div></div>
+    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center"><div><h1 className="text-2xl font-extrabold">Kế hoạch hôm nay</h1><p className="text-slate-500">Quân số → Thực đơn → Cần mua</p></div><div className="flex w-full flex-col gap-2 sm:ml-auto sm:w-auto sm:flex-row sm:flex-wrap"><label className="field flex min-h-11 items-center gap-2 font-bold"><Calendar size={19} /><input aria-label="Ngày lập kế hoạch" type="date" value={date} onChange={event => setDate(event.target.value)} className="min-w-0 flex-1 outline-none" /></label><button className="btn w-full sm:w-auto" onClick={copyPreviousDay}><Copy size={18} /> Sao chép hôm trước</button><button className="btn btn-primary w-full sm:w-auto" onClick={save}>{saved ? <Check size={18} /> : <Save size={18} />} {saved ? "Đã lưu" : "Lưu kế hoạch"}</button></div></div>
     <section className="section p-3 sm:p-5"><h2 className="section-title mb-4 flex items-center gap-2"><Users className="text-[#176448]" /> A. QUÂN SỐ</h2><HeadcountGrid counts={counts} setCounts={setCounts} unitRows={unitRows} setUnitRows={setUnitRows} unitHistory={unitHistory} /></section>
-    <section className="section p-3 sm:p-5"><div className="mb-4 flex flex-wrap items-center gap-3"><h2 className="section-title flex items-center gap-2"><Utensils className="text-[#176448]" /> B. THỰC ĐƠN</h2><div className="ml-auto flex gap-2"><select aria-label="Bữa ăn" className="field font-bold" value={meal} onChange={event => setMeal(event.target.value)}><option>Trưa</option><option>Sáng</option><option>Chiều</option></select><select aria-label="Loại suất" className="field font-bold" value={table} onChange={event => setTable(event.target.value)}><option>72K</option><option>128K</option></select></div></div><MenuEditor rows={rows} setRows={setRows} /></section>
+    <section className="section p-3 sm:p-5"><div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center"><h2 className="section-title flex items-center gap-2"><Utensils className="text-[#176448]" /> B. THỰC ĐƠN</h2><div className="flex w-full gap-2 sm:ml-auto sm:w-auto"><select aria-label="Bữa ăn" className="field min-h-11 min-w-0 flex-1 font-bold sm:flex-none" value={meal} onChange={event => setMeal(event.target.value)}><option>Trưa</option><option>Sáng</option><option>Chiều</option></select><select aria-label="Loại suất" className="field min-h-11 min-w-0 flex-1 font-bold sm:flex-none" value={table} onChange={event => setTable(event.target.value)}><option>72K</option><option>128K</option></select></div></div><MenuEditor rows={rows} setRows={setRows} /></section>
     <section className="section p-3 sm:p-5"><h2 className="section-title mb-1 flex items-center gap-2"><ShoppingBasket className="text-[#176448]" /> C. NGUYÊN LIỆU / CẦN MUA</h2><p className="mb-4 text-sm text-slate-500">Số lượng cần được tính từ quân số và định mức món ăn. Ô nền vàng có thể sửa.</p><ShoppingList items={items} setItems={setItems} print={false} /></section>
   </div>;
 }
