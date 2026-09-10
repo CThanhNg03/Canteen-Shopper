@@ -1,8 +1,6 @@
 import type { Counts } from "@/components/headcount/headcount-grid";
-import type { MenuRow } from "@/components/menu/menu-editor";
-import type { ShoppingItem } from "@/components/shopping/shopping-list";
-
-type IngredientNorm = { name: string; unit: string; quantityPerServing: number };
+import type { ShoppingBreakdown, ShoppingItem } from "@/components/shopping/shopping-list";
+import type { CanteenPlan } from "@/lib/canteens";
 
 export const ingredientSuppliers: Record<string, string> = {
   "Thịt gà": "Thực phẩm An Phú",
@@ -13,98 +11,61 @@ export const ingredientSuppliers: Record<string, string> = {
   "Chuối": "Nông sản Hòa Bình",
 };
 
-// MVP norms are kept client-side until the database-backed dish editor is wired up.
-const dishNorms: Record<string, Record<string, IngredientNorm[]>> = {
-  "Gà nấu lá giang": {
-    "72K": [
-      { name: "Thịt gà", unit: "kg", quantityPerServing: 0.09 },
-      { name: "Lá giang", unit: "kg", quantityPerServing: 0.0025 },
-    ],
-    "128K": [
-      { name: "Thịt gà", unit: "kg", quantityPerServing: 0.11 },
-      { name: "Lá giang", unit: "kg", quantityPerServing: 0.003 },
-    ],
-  },
-  "Rau muống luộc": {
-    "72K": [{ name: "Rau muống", unit: "kg", quantityPerServing: 0.05 }],
-    "128K": [{ name: "Rau muống", unit: "kg", quantityPerServing: 0.06 }],
-  },
-  "Canh bí xanh thịt": {
-    "72K": [{ name: "Thịt vai", unit: "kg", quantityPerServing: 0.035 }],
-    "128K": [{ name: "Thịt vai", unit: "kg", quantityPerServing: 0.045 }],
-  },
-  "Bò xào hoa thiên lý": {
-    "72K": [{ name: "Thịt bò", unit: "kg", quantityPerServing: 0.07 }],
-    "128K": [{ name: "Thịt bò", unit: "kg", quantityPerServing: 0.09 }],
-  },
-  Chuối: {
-    "72K": [{ name: "Chuối", unit: "kg", quantityPerServing: 0.12 }],
-    "128K": [{ name: "Chuối", unit: "kg", quantityPerServing: 0.12 }],
-  },
-};
-
-export function calculateShoppingItems(
-  counts: Counts,
-  rows: MenuRow[],
-  table: string,
-  meal: string,
-): ShoppingItem[] {
-  const servings = Object.entries(counts).reduce((total, [key, count]) => {
+export function getServingCount(counts: Counts, meal: string, table: string): number {
+  return Object.entries(counts).reduce((total, [key, count]) => {
     const [, entryTable, entryMeal] = key.split("|");
-    return entryTable === table && entryMeal === meal ? total + count : total;
+    return entryTable === table && entryMeal === meal && Number.isFinite(count) ? total + count : total;
   }, 0);
-  const totals = new Map<string, { unit: string; required: number }>();
+}
 
-  for (const row of rows) {
-    for (const norm of dishNorms[row.name]?.[table] ?? []) {
-      const current = totals.get(norm.name) ?? { unit: norm.unit, required: 0 };
-      current.required += servings * norm.quantityPerServing;
-      totals.set(norm.name, current);
+/** Calculates every configured meal/table menu while preserving full precision. */
+export function calculateShoppingItems(plan: Pick<CanteenPlan, "counts" | "menus" | "dishNorms">): ShoppingItem[] {
+  const totals = new Map<string, { name: string; unit: string; required: number; breakdown: ShoppingBreakdown[] }>();
+
+  for (const [key, menu] of Object.entries(plan.menus)) {
+    const [meal, table] = key.split("|");
+    if (!meal || !table || !Array.isArray(menu?.rows)) continue;
+    const servings = getServingCount(plan.counts, meal, table);
+    if (!servings) continue;
+    for (const row of menu.rows) {
+      for (const norm of plan.dishNorms[row.name]?.[table] ?? []) {
+        if (!norm.name.trim() || norm.normValue === null || !Number.isFinite(norm.normValue) || norm.normValue < 0) continue;
+        const mapKey = `${norm.name.trim().toLocaleLowerCase("vi")}|${norm.unit.trim().toLocaleLowerCase("vi")}`;
+        const quantity = servings * norm.normValue;
+        if (!Number.isFinite(quantity)) continue;
+        const current = totals.get(mapKey) ?? { name: norm.name.trim(), unit: norm.unit.trim() || "kg", required: 0, breakdown: [] };
+        current.required += quantity;
+        const existing = current.breakdown.find(item => item.meal === meal && item.table === table);
+        if (existing) existing.quantity += quantity;
+        else current.breakdown.push({ meal, table, quantity });
+        totals.set(mapKey, current);
+      }
     }
   }
 
-  return [...totals.entries()].map(([name, value]) => ({
-    name,
+  return [...totals.values()].map(value => ({
+    name: value.name,
     unit: value.unit,
-    supplier: ingredientSuppliers[name] ?? "Chưa chọn nhà cung cấp",
-    required: Math.round(value.required * 1000) / 1000,
+    supplier: ingredientSuppliers[value.name] ?? "Chưa chọn nhà cung cấp",
+    required: value.required,
     available: 0,
-    final: Math.round(value.required * 1000) / 1000,
+    final: value.required,
+    breakdown: value.breakdown,
   }));
 }
 
-export function aggregateShoppingItems(
-  entries: { canteenId: string; canteenName: string; items: ShoppingItem[] }[],
-): ShoppingItem[] {
+export function aggregateShoppingItems(entries: { canteenId: string; canteenName: string; items: ShoppingItem[] }[]): ShoppingItem[] {
   const totals = new Map<string, ShoppingItem>();
-
   for (const entry of entries) {
     for (const item of entry.items) {
-      const key = `${item.name}|${item.unit}|${item.supplier ?? ""}`;
-      const current = totals.get(key) ?? {
-        name: item.name,
-        unit: item.unit,
-        supplier: item.supplier ?? ingredientSuppliers[item.name] ?? "Chưa chọn nhà cung cấp",
-        required: 0,
-        available: 0,
-        final: 0,
-        canteens: [],
-      };
+      const key = `${item.name.toLocaleLowerCase("vi")}|${item.unit.toLocaleLowerCase("vi")}|${item.supplier ?? ""}`;
+      const current = totals.get(key) ?? { ...item, required: 0, available: 0, final: 0, canteens: [], breakdown: [] };
       current.required += item.required;
       current.final += item.final;
-      current.canteens = [
-        ...(current.canteens ?? []),
-        { id: entry.canteenId, name: entry.canteenName, quantity: item.required },
-      ];
+      current.canteens = [...(current.canteens ?? []), { id: entry.canteenId, name: entry.canteenName, quantity: item.required }];
+      current.breakdown = [...(current.breakdown ?? []), ...(item.breakdown ?? []).map(detail => ({ ...detail, canteenId: entry.canteenId, canteenName: entry.canteenName }))];
       totals.set(key, current);
     }
   }
-
-  return [...totals.values()]
-    .map(item => ({
-      ...item,
-      required: Math.round(item.required * 1000) / 1000,
-      final: Math.round(item.final * 1000) / 1000,
-    }))
-    .sort((a, b) => (a.supplier ?? "").localeCompare(b.supplier ?? "", "vi") || a.name.localeCompare(b.name, "vi"));
+  return [...totals.values()].sort((a, b) => (a.supplier ?? "").localeCompare(b.supplier ?? "", "vi") || a.name.localeCompare(b.name, "vi"));
 }

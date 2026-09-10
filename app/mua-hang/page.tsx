@@ -12,7 +12,7 @@ const today = new Date().toISOString().slice(0, 10);
 export default function ShoppingPage() {
   const [date, setDate] = useState(today);
   const [canteens, setCanteens] = useState<Canteen[]>(defaultCanteens);
-  const [plan, setPlan] = useState<MultiCanteenPlan>({ canteens: {} });
+  const [plan, setPlan] = useState<MultiCanteenPlan>({ version: 2, canteens: {} });
   const [selectedIds, setSelectedIds] = useState<string[]>(defaultCanteens.map(canteen => canteen.id));
   const [adjustments, setAdjustments] = useState<Record<string, Pick<ShoppingItem, "available" | "final">>>({});
 
