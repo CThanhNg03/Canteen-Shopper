@@ -1,5 +1,6 @@
 "use client";
-import { Printer } from "lucide-react";
+import { ChevronDown, Printer } from "lucide-react";
+import { useState } from "react";
 import { ArithmeticInput } from "@/components/calculator/arithmetic-input";
 import { formatNumber } from "@/lib/utils";
 
@@ -11,7 +12,9 @@ export type ShoppingItem = {
   available: number;
   final: number;
   canteens?: { id: string; name: string; quantity: number }[];
+  breakdown?: ShoppingBreakdown[];
 };
+export type ShoppingBreakdown = { meal: string; table: string; quantity: number; canteenId?: string; canteenName?: string };
 
 export const initialShopping: ShoppingItem[] = [
   { name: "Thịt gà", unit: "kg", supplier: "Thực phẩm An Phú", required: 45.8, available: 0, final: 45.8 },
@@ -26,6 +29,7 @@ export function ShoppingList({ items, setItems, print = true, showBreakdown = fa
   showBreakdown?: boolean;
   editable?: boolean;
 }) {
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const update = (index: number, key: "available" | "final", value: number) => setItems(items.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item));
 
   return <div>
@@ -35,7 +39,7 @@ export function ShoppingList({ items, setItems, print = true, showBreakdown = fa
       <tbody>{items.map((item, index) => {
         const suggested = Math.max(item.required - item.available, 0);
         return <tr key={`${item.name}-${item.supplier ?? ""}`}>
-          <th className="border p-3 text-left"><div>{item.name}</div><div className="mt-1 text-xs font-medium text-slate-500">{item.supplier ?? "Chưa chọn nhà cung cấp"}</div>{showBreakdown && item.canteens?.length ? <div className="mt-2 flex flex-wrap gap-1">{item.canteens.map(canteen => <span key={canteen.id} className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800">{canteen.name}: {formatNumber(canteen.quantity)} {item.unit}</span>)}</div> : null}</th>
+          <th className="border p-3 text-left"><div>{item.name}</div><div className="mt-1 text-xs font-medium text-slate-500">{item.supplier ?? "Chưa chọn nhà cung cấp"}</div>{showBreakdown && (item.breakdown?.length || item.canteens?.length) ? <div className="mt-2"><button className="flex items-center gap-1 text-xs font-bold text-[#176448]" onClick={() => setExpanded(current => ({ ...current, [`${item.name}|${item.unit}`]: !current[`${item.name}|${item.unit}`] }))}><ChevronDown className={expanded[`${item.name}|${item.unit}`] ? "rotate-180" : ""} size={16} /> Chi tiết</button>{expanded[`${item.name}|${item.unit}`] && <div className="mt-2 space-y-1 rounded-lg bg-emerald-50 p-2 text-xs font-semibold text-emerald-900">{item.breakdown?.length ? item.breakdown.map((detail, detailIndex) => <div key={`${detail.canteenId ?? ""}-${detail.meal}-${detail.table}-${detailIndex}`}>{detail.canteenName ? `${detail.canteenName} · ` : ""}{detail.meal} {detail.table}: {formatNumber(detail.quantity)} {item.unit}</div>) : item.canteens?.map(canteen => <div key={canteen.id}>{canteen.name}: {formatNumber(canteen.quantity)} {item.unit}</div>)}</div>}</div> : null}</th>
           <td className="border bg-slate-50 p-3 text-center font-extrabold">{formatNumber(item.required)} {item.unit}</td>
           <td className="border p-2">{editable ? <ArithmeticInput value={item.available} onChange={value => update(index, "available", value)} /> : <div className="p-2 text-center">{formatNumber(item.available)} {item.unit}</div>}</td>
           <td className="border bg-slate-50 p-3 text-center font-bold">{formatNumber(suggested)} {item.unit}</td>

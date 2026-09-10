@@ -1,4 +1,61 @@
 "use client";
-import { Plus, RotateCcw, Trash2 } from "lucide-react"; import { DishAutocomplete } from "./dish-autocomplete";
-export type MenuRow={id:string;category:string;name:string;note:string};
-export function MenuEditor({rows,setRows}:{rows:MenuRow[];setRows:(v:MenuRow[])=>void}){const update=(id:string,key:keyof MenuRow,value:string)=>setRows(rows.map(r=>r.id===id?{...r,[key]:value}:r));return <div><div className="mb-3 flex flex-wrap gap-2"><button className="btn" onClick={()=>setRows([{id:crypto.randomUUID(),category:"Món chính",name:"Gà nấu lá giang",note:""},{id:crypto.randomUUID(),category:"Rau",name:"Rau muống luộc",note:""},{id:crypto.randomUUID(),category:"Canh",name:"Canh bí xanh thịt",note:""}])}><RotateCcw size={18}/> Dùng lại thực đơn gần đây</button><button className="btn">Sao chép thực đơn hôm trước</button></div><div className="space-y-2">{rows.map(r=><div key={r.id} className="grid grid-cols-[minmax(220px,1fr)_minmax(120px,.7fr)_44px] gap-2"><DishAutocomplete value={r.name} onChange={v=>update(r.id,"name",v)}/><input aria-label="Ghi chú" className="field" placeholder="Ghi chú (nếu có)" value={r.note} onChange={e=>update(r.id,"note",e.target.value)}/><button aria-label="Xóa món" className="btn px-2 text-red-700" onClick={()=>setRows(rows.filter(x=>x.id!==r.id))}><Trash2 size={19}/></button>{r.name&&!["Gà nấu lá giang","Bò xào hoa thiên lý","Rau muống luộc","Canh bí xanh thịt","Chuối"].includes(r.name)&&<div className="text-sm font-medium text-amber-700">Chưa có định mức — vẫn có thể lưu thực đơn</div>}</div>)}</div><button className="btn mt-3 text-[#176448]" onClick={()=>setRows([...rows,{id:crypto.randomUUID(),category:"Món chính",name:"",note:""}])}><Plus size={18}/> Thêm món</button></div>}
+
+import { Plus, RotateCcw } from "lucide-react";
+import { MenuDishRow } from "./menu-dish-row";
+
+export type IngredientNorm = {
+  id: string;
+  dishId: string;
+  tableType: string;
+  name: string;
+  normExpression: string;
+  normValue: number | null;
+  unit: string;
+};
+export type MenuRow = { id: string; category?: string; name: string; note: string };
+export type MenuPlan = { rows: MenuRow[] };
+
+type Props = {
+  rows: MenuRow[];
+  setRows: (value: MenuRow[]) => void;
+  tableType: string;
+  servings: number;
+  dishNorms: Record<string, Record<string, IngredientNorm[]>>;
+  setDishNorms: (value: Record<string, Record<string, IngredientNorm[]>>) => void;
+};
+
+const recentRows = (): MenuRow[] => [
+  { id: crypto.randomUUID(), name: "Gà nấu lá giang", note: "" },
+  { id: crypto.randomUUID(), name: "Rau muống luộc", note: "" },
+  { id: crypto.randomUUID(), name: "Canh bí xanh thịt", note: "" },
+];
+
+export function MenuEditor({ rows, setRows, tableType, servings, dishNorms, setDishNorms }: Props) {
+  const update = (id: string, changes: Partial<MenuRow>) => setRows(rows.map(row => row.id === id ? { ...row, ...changes } : row));
+  const setIngredients = (dishName: string, ingredients: IngredientNorm[]) => {
+    setDishNorms({
+      ...dishNorms,
+      [dishName]: { ...(dishNorms[dishName] ?? {}), [tableType]: ingredients },
+    });
+  };
+
+  return <div>
+    <div className="mb-3 flex flex-wrap gap-2">
+      <button className="btn" onClick={() => setRows(recentRows())}><RotateCcw size={18} /> Dùng lại thực đơn gần đây</button>
+      <button className="btn">Sao chép thực đơn hôm trước</button>
+    </div>
+    <div className="space-y-3">{rows.map(row => <MenuDishRow
+      key={row.id}
+      row={row}
+      tableType={tableType}
+      servings={servings}
+      ingredients={dishNorms[row.name]?.[tableType] ?? []}
+      hasNormForAnotherTable={Object.values(dishNorms[row.name] ?? {}).some(items => items.length > 0)}
+      ingredientNames={[...new Set(Object.values(dishNorms).flatMap(tables => Object.values(tables).flatMap(items => items.map(item => item.name))))]}
+      onChange={changes => update(row.id, changes)}
+      onDelete={() => setRows(rows.filter(candidate => candidate.id !== row.id))}
+      onIngredientsChange={ingredients => setIngredients(row.name, ingredients)}
+    />)}</div>
+    <button className="btn mt-3 text-[#176448]" onClick={() => setRows([...rows, { id: crypto.randomUUID(), name: "", note: "" }])}><Plus size={18} /> Thêm món</button>
+  </div>;
+}
