@@ -1,0 +1,3 @@
+"use client";
+import { useState } from "react"; import { calculate } from "@/lib/arithmetic";
+export function ArithmeticInput({value,onChange,label}:{value:number;onChange:(n:number)=>void;label?:string}){const [text,setText]=useState(value?String(value):"");const finish=()=>{const n=calculate(text);if(n!==null){onChange(n);setText(n?String(n):"")}else setText(value?String(value):"")};return <input aria-label={label} inputMode="decimal" className="field editable w-full min-w-16 text-center font-bold" value={text} placeholder="0" onChange={e=>setText(e.target.value)} onBlur={finish} onKeyDown={e=>{if(e.key==="Enter"){finish();(e.currentTarget.closest("td")?.nextElementSibling?.querySelector("input") as HTMLInputElement)?.focus()}}}/>}
