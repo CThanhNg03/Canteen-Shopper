@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Calendar, Check, Copy, Save, ShoppingBasket, Users, Utensils } from "lucide-react";
-import { HeadcountGrid, type Counts } from "@/components/headcount/headcount-grid";
+import { defaultUnits, HeadcountGrid, type Counts, type UnitRow } from "@/components/headcount/headcount-grid";
 import { MenuEditor, type MenuRow } from "@/components/menu/menu-editor";
 import { ShoppingList, type ShoppingItem } from "@/components/shopping/shopping-list";
 import { calculateShoppingItems } from "@/lib/planning";
@@ -13,11 +13,30 @@ const defaultRows: MenuRow[] = [
   { id: "2", category: "Rau", name: "Rau muống luộc", note: "" },
   { id: "3", category: "Canh", name: "Canh bí xanh thịt", note: "" },
 ];
-type StoredPlan = { counts: Counts; rows: MenuRow[]; items: ShoppingItem[]; meal?: string; table?: string };
+type StoredPlan = { counts: Counts; rows: MenuRow[]; items: ShoppingItem[]; meal?: string; table?: string; unitRows?: UnitRow[] };
+const makeDefaultUnitRows = (): UnitRow[] => defaultUnits.map(name => ({ id: `unit:${name}`, name }));
+
+function readUnitHistory() {
+  const names = new Set(defaultUnits);
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index);
+    if (!key?.startsWith("bep-plan:")) continue;
+    try {
+      const plan = JSON.parse(localStorage.getItem(key) ?? "") as StoredPlan;
+      plan.unitRows?.forEach(unit => unit.name.trim() && names.add(unit.name.trim()));
+      if (!plan.unitRows) Object.keys(plan.counts ?? {}).forEach(count => names.add(count.split("|")[0]));
+    } catch {
+      // Ignore unrelated or obsolete local records while building suggestions.
+    }
+  }
+  return [...names].sort((a, b) => a.localeCompare(b, "vi"));
+}
 
 export default function TodayPage() {
   const [date, setDate] = useState(today);
   const [counts, setCounts] = useState<Counts>({});
+  const [unitRows, setUnitRows] = useState<UnitRow[]>(makeDefaultUnitRows);
+  const [unitHistory, setUnitHistory] = useState<string[]>(defaultUnits);
   const [rows, setRows] = useState<MenuRow[]>(defaultRows);
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [meal, setMeal] = useState("Trưa");
@@ -35,7 +54,10 @@ export default function TodayPage() {
         localStorage.removeItem(storageKey(date));
       }
     }
+    const nextUnitRows = plan?.unitRows ?? (plan ? [...new Set(Object.keys(plan.counts).map(key => key.split("|")[0]))].map(name => ({ id: name, name })) : makeDefaultUnitRows());
     setCounts(plan?.counts ?? {});
+    setUnitRows(nextUnitRows.length ? nextUnitRows : makeDefaultUnitRows());
+    setUnitHistory(readUnitHistory());
     setRows(plan?.rows ?? defaultRows);
     setItems(plan?.items ?? []);
     setMeal(plan?.meal ?? "Trưa");
@@ -64,6 +86,8 @@ export default function TodayPage() {
     if (!raw) return;
     const plan: StoredPlan = JSON.parse(raw);
     setCounts(plan.counts);
+    const copiedUnits = plan.unitRows ?? [...new Set(Object.keys(plan.counts).map(key => key.split("|")[0]))].map(name => ({ id: name, name }));
+    setUnitRows(copiedUnits.length ? copiedUnits : makeDefaultUnitRows());
     setRows(plan.rows);
     setItems(plan.items);
     setMeal(plan.meal ?? meal);
@@ -71,14 +95,15 @@ export default function TodayPage() {
   };
 
   const save = () => {
-    localStorage.setItem(storageKey(date), JSON.stringify({ counts, rows, items, meal, table }));
+    localStorage.setItem(storageKey(date), JSON.stringify({ counts, unitRows, rows, items, meal, table }));
+    setUnitHistory(readUnitHistory());
     setSaved(true);
     window.setTimeout(() => setSaved(false), 2000);
   };
 
   return <div className="space-y-5">
     <div className="flex flex-wrap items-center gap-3"><div><h1 className="text-2xl font-extrabold">Kế hoạch hôm nay</h1><p className="text-slate-500">Quân số → Thực đơn → Cần mua</p></div><div className="ml-auto flex flex-wrap gap-2"><label className="field flex items-center gap-2 font-bold"><Calendar size={19} /><input aria-label="Ngày lập kế hoạch" type="date" value={date} onChange={event => setDate(event.target.value)} className="outline-none" /></label><button className="btn" onClick={copyPreviousDay}><Copy size={18} /> Sao chép hôm trước</button><button className="btn btn-primary" onClick={save}>{saved ? <Check size={18} /> : <Save size={18} />} {saved ? "Đã lưu" : "Lưu kế hoạch"}</button></div></div>
-    <section className="section p-3 sm:p-5"><h2 className="section-title mb-4 flex items-center gap-2"><Users className="text-[#176448]" /> A. QUÂN SỐ</h2><HeadcountGrid counts={counts} setCounts={setCounts} /></section>
+    <section className="section p-3 sm:p-5"><h2 className="section-title mb-4 flex items-center gap-2"><Users className="text-[#176448]" /> A. QUÂN SỐ</h2><HeadcountGrid counts={counts} setCounts={setCounts} unitRows={unitRows} setUnitRows={setUnitRows} unitHistory={unitHistory} /></section>
     <section className="section p-3 sm:p-5"><div className="mb-4 flex flex-wrap items-center gap-3"><h2 className="section-title flex items-center gap-2"><Utensils className="text-[#176448]" /> B. THỰC ĐƠN</h2><div className="ml-auto flex gap-2"><select aria-label="Bữa ăn" className="field font-bold" value={meal} onChange={event => setMeal(event.target.value)}><option>Trưa</option><option>Sáng</option><option>Chiều</option></select><select aria-label="Loại suất" className="field font-bold" value={table} onChange={event => setTable(event.target.value)}><option>72K</option><option>128K</option></select></div></div><MenuEditor rows={rows} setRows={setRows} /></section>
     <section className="section p-3 sm:p-5"><h2 className="section-title mb-1 flex items-center gap-2"><ShoppingBasket className="text-[#176448]" /> C. NGUYÊN LIỆU / CẦN MUA</h2><p className="mb-4 text-sm text-slate-500">Số lượng cần được tính từ quân số và định mức món ăn. Ô nền vàng có thể sửa.</p><ShoppingList items={items} setItems={setItems} print={false} /></section>
   </div>;
